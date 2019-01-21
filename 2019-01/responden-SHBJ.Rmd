@@ -1,0 +1,43 @@
+---
+title: "19-01-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+theme_set(theme_light())
+
+
+responden <- read_excel("data/19-01-15/responden-2017-2018.xlsx", sheet = 1) %>% arrange(kode_bps, kuesioner)
+```
+
+
+```{r}
+kuesioner_per_wilayah <- responden %>%
+#  drop_na() %>%
+  count(kode_bps, kuesioner, sort = TRUE) %>%
+  #mutate(nama_wilayah = str_sub(nama_wilayah, start = -5)) %>%
+  spread(kode_bps, n)
+
+#write_csv(kuesioner_per_wilayah, "output/2019-01-15/kuesiner-per-wilayah.csv", na = "-")
+```
+
+
+Provinsi mana yang jumlah responden terbanyak?
+
+```{r}
+responden %>%
+  drop_na() %>%
+  count(nama_wilayah, sort = TRUE) %>%
+  mutate(nama_wilayah = fct_reorder(nama_wilayah, n)) %>%
+  ggplot(aes(nama_wilayah, n)) +
+  geom_col() +
+  labs(y = "Jumlah Responden", x = NULL) +
+  coord_flip()
+```
+

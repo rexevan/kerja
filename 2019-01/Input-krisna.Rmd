@@ -1,0 +1,154 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(janitor)
+```
+
+```{r}
+ev <- read_excel("data/19-01-15/usulanPSPARKdanNonRK.xlsx", sheet = "rkbmn ev 1") %>%
+  clean_names() %>%
+  select(idkab_rinci, id_lokasi, komp_rinci, vol_20, jumalh_22) %>%
+  rename(vol = vol_20,
+         jumlah = jumalh_22) %>%
+  mutate(id_lokasi = as.character(id_lokasi))
+
+non_ev <- read_excel("data/19-01-15/usulanPSPARKdanNonRK.xlsx", sheet = "non rkbmn ev 1") %>%
+  clean_names() %>%
+  select(idkab_rinci, id_lokasi, komp_rinci, vol2020_20, jumlah2020_22) %>%
+  rename(vol = vol2020_20,
+         jumlah = jumlah2020_22
+  )
+```
+
+
+```{r}
+names(ev)
+names(non_ev)
+
+glimpse(ev)
+glimpse(non_ev)
+```
+
+```{r}
+gabung <- union(ev, non_ev) %>%
+  drop_na() %>%
+  mutate(kodeBPS = str_sub(idkab_rinci, start = 1, end = 4),
+         kode_rinci = str_sub(komp_rinci, start = 1, end = 3)) %>%
+  group_by(kodeBPS, id_lokasi, kode_rinci) %>%
+  summarize(vol_2020 = sum(vol),
+            jumlah_2020 = sum(jumlah) / 1000) %>%
+  ungroup()
+```
+
+bikin data Untuk tahun 2021 - 2024. Volume tetap dan Jumlah mengalami kenaikan 1,35 kali tiap tahun.
+
+
+```{r}
+gabung %>%
+  filter(id_lokasi )
+
+PSPA2891 <- gabung %>% filter(id_lokasi == "2891")
+PSPA2890 <- gabung %>% filter(id_lokasi == "2890")
+```
+
+
+```{r}
+
+hasil2890 <- PSPA2890 %>%
+  group_by(kode_rinci) %>%
+  summarise(vol_2020 = sum(vol_2020),
+            jumlah_2020 = sum(jumlah_2020)) %>%
+  mutate(
+    vol_2021 = vol_2020,
+    vol_2022 = vol_2020,
+    vol_2023 = vol_2020,
+
+    jumlah_2021 = 1.035 * jumlah_2020,
+    jumlah_2022 = 1.035 * jumlah_2021,
+    jumlah_2023 = 1.035 * jumlah_2022
+  )
+
+
+hasil2891 <- PSPA2891 %>%
+  mutate(
+    vol_2021 = vol_2020,
+    vol_2022 = vol_2020,
+    vol_2023 = vol_2020,
+
+    jumlah_2021 = 1.035 * jumlah_2020,
+    jumlah_2022 = 1.035 * jumlah_2021,
+    jumlah_2023 = 1.035 * jumlah_2022
+  )
+
+```
+
+Ambil Kode KRISNA untuk masing-masing satker.
+
+```{r}
+krisna <- read_excel("data/19-01-15/SATKER BPS 2018.xlsx", sheet = "kode krisna", col_types = c("text", "text"))
+
+krisna
+
+hasil2890_2 <- hasil2890 %>%
+  ungroup() %>%
+  mutate(kewenangan = "Pusat") %>%
+  select(
+    kode_rinci,
+    kewenangan,
+    jumlah_2020,
+    starts_with("vol"),
+    starts_with("jumlah")
+    )
+
+
+hasil2891_2 <- hasil2891 %>%
+  ungroup() %>%
+  left_join(krisna, by = "kodeBPS") %>%
+  mutate(kewenangan = "Daerah") %>%
+  select(
+    kodeBPS,
+    id_lokasi,
+    kode_rinci,
+    kode_krisna,
+    kewenangan,
+    jumlah_2020,
+    starts_with("vol"),
+    starts_with("jumlah")
+    )
+```
+
+Periksa duplikasi
+
+```{r}
+
+hasil_2 %>%
+  count(kodeBPS, id_lokasi, kode_rinci, sort = TRUE) %>%
+  View()
+
+hasil_2 %>%
+  filter(id_lokasi == 2891, kode_rinci == "055") %>%
+  duplicated() %>% sum()
+```
+
+
+```{r}
+glimpse(hasil_2)
+
+#write_csv(hasil2890_2, "output/2019-01-16/2890.csv")
+#write_csv(hasil2891_2, "output/2019-01-16/2891.csv")
+```
+
+
+Total Volume untuk id_lokasi 2890 dan 2891
+```{r}
+gabung %>%
+  group_by(id_lokasi, kode_rinci) %>%
+  summarise(vol_2020 = sum(vol_2020)) %>%
+  View("Jumlah Volume per id_lokasi")
+```
+
